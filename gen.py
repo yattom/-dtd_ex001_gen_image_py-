@@ -120,6 +120,7 @@ def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
     rendered_image = np.zeros(shape=(viewport.view_image_size.height, viewport.view_image_size.width, 3),
                               dtype=np.uint8)
     for y in range(rendered_image.shape[1]):
+        print(f"{y=} / {rendered_image.shape[1]}")
         for x in range(rendered_image.shape[0]):
             pixel_world_x = (x - viewport.view_image_size.width / 2) * (800 / viewport.view_image_size.width)
             pixel_world_y = (y - viewport.view_image_size.height / 2) * (800 / viewport.view_image_size.height)
@@ -131,6 +132,8 @@ def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
 
             for i in range(100):
                 point = viewport.position + ray_direction * i
+                if not (0 <= point.x < 100 and 0 <= point.y < 100 and 0 <= point.z < 100):
+                    continue
                 try:
                     if space[int(point.x), int(point.y), int(point.z)] != 0:
                         c = c * 0.99
