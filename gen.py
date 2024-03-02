@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from random import randint
 
 import numpy as np
 from PIL import Image
@@ -69,15 +70,16 @@ def add_cloud(volumetric_space):
     depth = volumetric_space.shape[2]
     # Set density values in the volumetric space
     # For example, set a spherical cloud with density 1 in a certain region
-    center_x, center_y, center_z = 50, 50, 50  # Center of the spherical cloud
-    radius = 40  # Radius of the spherical cloud
-    for z in range(depth):
-        for y in range(height):
-            for x in range(width):
-                distance_to_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2 + (z - center_z) ** 2)
-                if distance_to_center < radius:
-                    # Set density value to 1 within the sphere
-                    volumetric_space[x, y, z] = 1
+    for i in range(8):
+        center_x, center_y, center_z = randint(0, width), randint(0, height), randint(50, depth)
+        radius = randint(5, 30)  # Radius of the spherical cloud
+        for z in range(depth):
+            for y in range(height):
+                for x in range(width):
+                    distance_to_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2 + (z - center_z) ** 2)
+                    if distance_to_center < radius:
+                        # Set density value to 1 within the sphere
+                        volumetric_space[x, y, z] = 1
 
 
 @dataclass
