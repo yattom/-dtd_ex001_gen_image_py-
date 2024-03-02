@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 import numpy as np
 from PIL import Image
 
@@ -53,7 +55,10 @@ def draw_cloud(background: np.ndarray) -> np.ndarray:
     volumetric_space = np.zeros((width, height, depth))
     add_cloud(volumetric_space)
 
-    view = render_view(background=background, space=volumetric_space)
+    # Define the viewport
+    viewport = Viewport(position=Vector(50, 50, 0), vector=Vector(0, 0, 1), focal_length=100,
+                        view_image_size=RectSize(width=800, height=800))
+    view = render_view(viewport=viewport, background=background, space=volumetric_space)
 
     return view
 
@@ -75,20 +80,65 @@ def add_cloud(volumetric_space):
                     volumetric_space[x, y, z] = 1
 
 
-def render_view(background: np.ndarray, space: np.ndarray):
-    view = np.zeros(shape=background.shape, dtype=background.dtype)
-    for y in range(view.shape[1]):
-        for x in range(view.shape[0]):
+@dataclass
+class Vector:
+    x: float
+    y: float
+    z: float
+
+    def __add__(self, other):
+        return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
+
+    def __sub__(self, other):
+        return Vector(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    def __mul__(self, scale):
+        return Vector(self.x * scale, self.y * scale, self.z * scale)
+
+    def normalize(self):
+        mag = np.sqrt(self.x ** 2 + self.y ** 2 + self.z ** 2)
+        return Vector(self.x / mag, self.y / mag, self.z / mag)
+
+
+@dataclass
+class RectSize:
+    width: int
+    height: int
+
+
+@dataclass
+class Viewport:
+    position: Vector
+    vector: Vector
+    focal_length: float
+    view_image_size: RectSize
+
+
+def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
+    viewport_center = viewport.position + viewport.vector * viewport.focal_length
+
+    rendered_image = np.zeros(shape=(viewport.view_image_size.height, viewport.view_image_size.width, 3),
+                              dtype=np.uint8)
+    for y in range(rendered_image.shape[1]):
+        for x in range(rendered_image.shape[0]):
+            pixel_world_x = (x - viewport.view_image_size.width / 2) * (800 / viewport.view_image_size.width)
+            pixel_world_y = (y - viewport.view_image_size.height / 2) * (800 / viewport.view_image_size.height)
+            pixel_position = Vector(pixel_world_x, pixel_world_y, viewport_center.z)
+            ray_direction = (pixel_position - viewport.position).normalize()
+
+            # calc color for pixel[x, y]
             c = background[x, y]
 
-            space_x = int(space.shape[0] * x / view.shape[0])
-            space_y = int(space.shape[1] * y / view.shape[1])
-            for space_z in range(space.shape[2]):
-                if space[space_x, space_y, space_z] != 0:
-                    c = c * 0.99
-            view[x, y] = c
-    return view
+            for i in range(100):
+                point = viewport.position + ray_direction * i
+                try:
+                    if space[int(point.x), int(point.y), int(point.z)] != 0:
+                        c = c * 0.99
+                except IndexError:
+                    pass
+            rendered_image[x, y] = c
+    return rendered_image
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
