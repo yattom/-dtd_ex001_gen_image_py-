@@ -4,6 +4,8 @@ from random import randint
 import numpy as np
 from PIL import Image
 
+meter = float
+
 
 def generate_background(height, width) -> np.ndarray:
     # Create arrays for black-to-red and blue-to-black gradients
@@ -57,8 +59,11 @@ def draw_cloud(background: np.ndarray) -> np.ndarray:
     add_cloud(volumetric_space)
 
     # Define the viewport
-    viewport = Viewport(position=Vector(50, 50, 0), vector=Vector(0, 0, 1), focal_length=100,
-                        view_image_size=RectSize(width=800, height=800))
+    viewport = Viewport(position=Vector(50, 50, -100),
+                        vector=Vector(0, 0, 1),
+                        focal_length=0.1,
+                        projection_plane_size=RectSize(width=0.1, height=0.1),
+                        image_size=RectSize(width=100, height=100))
     view = render_view(viewport=viewport, background=background, space=volumetric_space)
 
     return view
@@ -84,9 +89,9 @@ def add_cloud(volumetric_space):
 
 @dataclass
 class Vector:
-    x: float
-    y: float
-    z: float
+    x: meter
+    y: meter
+    z: meter
 
     def __add__(self, other):
         return Vector(self.x + other.x, self.y + other.y, self.z + other.z)
@@ -104,35 +109,41 @@ class Vector:
 
 @dataclass
 class RectSize:
-    width: int
-    height: int
+    width: meter
+    height: meter
 
 
 @dataclass
 class Viewport:
     position: Vector
     vector: Vector
-    focal_length: float
-    view_image_size: RectSize
+    focal_length: meter
+    projection_plane_size: RectSize
+    image_size: RectSize = RectSize
 
 
 def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
-    viewport_center = viewport.position + viewport.vector * viewport.focal_length
+    viewport_center = viewport.position - viewport.vector * viewport.focal_length
+    viewport_left_top = viewport_center - Vector(viewport.projection_plane_size.width / 2,
+                                                 viewport.projection_plane_size.height / 2, 0)
 
-    rendered_image = np.zeros(shape=(viewport.view_image_size.height, viewport.view_image_size.width, 3),
+    rendered_image = np.zeros(shape=(viewport.image_size.width, viewport.image_size.height, 3),
                               dtype=np.uint8)
-    for y in range(rendered_image.shape[1]):
-        print(f"{y=} / {rendered_image.shape[1]}")
-        for x in range(rendered_image.shape[0]):
-            pixel_world_x = (x - viewport.view_image_size.width / 2) * (800 / viewport.view_image_size.width)
-            pixel_world_y = (y - viewport.view_image_size.height / 2) * (800 / viewport.view_image_size.height)
-            pixel_position = Vector(pixel_world_x, pixel_world_y, viewport_center.z)
-            ray_direction = (pixel_position - viewport.position).normalize()
+    image_width = rendered_image.shape[0]
+    image_height = rendered_image.shape[1]
+    pixel_x_v = Vector(viewport.projection_plane_size.width / image_width, 0, 0)
+    pixel_y_v = Vector(0, viewport.projection_plane_size.height / image_height, 0)
+
+    for y in range(image_height):
+        print(f"{y=} / {image_height}")
+        for x in range(image_width):
+            pixel_position = pixel_x_v * x + pixel_y_v * y + viewport_left_top
+            ray_direction = (viewport.position - pixel_position).normalize()
 
             # calc color for pixel[x, y]
             c = background[x, y]
 
-            for i in range(100):
+            for i in range(200):
                 point = viewport.position + ray_direction * i
                 if not (0 <= point.x < 100 and 0 <= point.y < 100 and 0 <= point.z < 100):
                     continue
