@@ -78,9 +78,9 @@ def add_cloud(volumetric_space):
     for i in range(8):
         center_x, center_y, center_z = randint(0, width), randint(0, height), randint(50, depth)
         radius = randint(5, 30)  # Radius of the spherical cloud
-        for z in range(depth):
-            for y in range(height):
-                for x in range(width):
+        for z in range(max(0, center_z - radius), min(center_z + radius, depth)):
+            for y in range(max(0, center_y - radius), min(center_y + radius, height)):
+                for x in range(max(0, center_x - width), min(center_x + radius, width)):
                     distance_to_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2 + (z - center_z) ** 2)
                     if distance_to_center < radius:
                         # Set density value to 1 within the sphere
