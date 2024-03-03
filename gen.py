@@ -40,7 +40,7 @@ def save_image(background):
 def main():
     # Define image dimensions
     width = 800
-    height = 800
+    height = 600
     background = generate_background(height, width)
 
     view = draw_cloud(background=background)
@@ -55,15 +55,16 @@ def draw_cloud(background: np.ndarray) -> np.ndarray:
     depth = 100
 
     # Create a 3D array to represent the volumetric space
-    volumetric_space = np.zeros((width, height, depth))
+    volumetric_space = np.zeros((width, height, depth, 2), dtype=np.float32)
     add_cloud(volumetric_space)
+    light_cloud(volumetric_space)
 
     # Define the viewport
     viewport = Viewport(position=Vector(50, 50, -100),
                         vector=Vector(0, 0, 1),
                         focal_length=0.1,
-                        projection_plane_size=RectSize(width=0.1, height=0.1),
-                        image_size=RectSize(width=100, height=100))
+                        projection_plane_size=RectSize(width=0.1, height=0.075),
+                        image_size=RectSize(width=100, height=75))
     view = render_view(viewport=viewport, background=background, space=volumetric_space)
 
     return view
@@ -75,7 +76,7 @@ def add_cloud(volumetric_space):
     depth = volumetric_space.shape[2]
     # Set density values in the volumetric space
     # For example, set a spherical cloud with density 1 in a certain region
-    for i in range(8):
+    for i in range(3):
         center_x, center_y, center_z = randint(0, width), randint(0, height), randint(50, depth)
         radius = randint(5, 30)  # Radius of the spherical cloud
         for z in range(max(0, center_z - radius), min(center_z + radius, depth)):
@@ -84,7 +85,20 @@ def add_cloud(volumetric_space):
                     distance_to_center = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2 + (z - center_z) ** 2)
                     if distance_to_center < radius:
                         # Set density value to 1 within the sphere
-                        volumetric_space[x, y, z] = 1
+                        volumetric_space[x, y, z][0] = 1
+
+
+def light_cloud(volumetric_space):
+    width = volumetric_space.shape[0]
+    height = volumetric_space.shape[1]
+    depth = volumetric_space.shape[2]
+    for x in range(width):
+        for z in range(depth):
+            light = 1.0
+            for y in range(height):
+                if volumetric_space[x, y, z][0] == 1:
+                    volumetric_space[x, y, z][1] = light
+                    light *= 0.95
 
 
 @dataclass
@@ -122,15 +136,21 @@ class Viewport:
     image_size: RectSize = RectSize
 
 
+def add_white(base, intensity):
+    return np.array([min(255, base[0] + 255 * 0.1 * intensity),
+                     min(255, base[1] + 255 * 0.1 * intensity),
+                     min(255, base[2] + 255 * 0.1 * intensity)])
+
+
 def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
     viewport_center = viewport.position - viewport.vector * viewport.focal_length
     viewport_left_top = viewport_center - Vector(viewport.projection_plane_size.width / 2,
                                                  viewport.projection_plane_size.height / 2, 0)
 
-    rendered_image = np.zeros(shape=(viewport.image_size.width, viewport.image_size.height, 3),
+    rendered_image = np.zeros(shape=(viewport.image_size.height, viewport.image_size.width, 3),
                               dtype=np.uint8)
-    image_width = rendered_image.shape[0]
-    image_height = rendered_image.shape[1]
+    image_width = viewport.image_size.width
+    image_height = viewport.image_size.height
     pixel_x_v = Vector(viewport.projection_plane_size.width / image_width, 0, 0)
     pixel_y_v = Vector(0, viewport.projection_plane_size.height / image_height, 0)
 
@@ -148,11 +168,13 @@ def render_view(viewport: Viewport, background: np.ndarray, space: np.ndarray):
                 if not (0 <= point.x < 100 and 0 <= point.y < 100 and 0 <= point.z < 100):
                     continue
                 try:
-                    if space[int(point.x), int(point.y), int(point.z)] != 0:
+                    if space[int(point.x), int(point.y), int(point.z)][0] != 0:
                         c = c * 0.99
+                    if space[int(point.x), int(point.y), int(point.z)][1] != 0:
+                        c = add_white(c, space[int(point.x), int(point.y), int(point.z)][1])
                 except IndexError:
                     pass
-            rendered_image[x, y] = c
+            rendered_image[image_height - y - 1, x] = c
     return rendered_image
 
 
