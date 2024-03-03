@@ -76,9 +76,9 @@ def add_cloud(volumetric_space):
     depth = volumetric_space.shape[2]
     # Set density values in the volumetric space
     # For example, set a spherical cloud with density 1 in a certain region
-    for i in range(3):
-        center_x, center_y, center_z = randint(0, width), randint(0, height), randint(50, depth)
-        radius = randint(5, 30)  # Radius of the spherical cloud
+    for i in range(80):
+        center_x, center_y, center_z = randint(0, width), randint(20, 60), randint(0, depth)
+        radius = randint(5, 20)  # Radius of the spherical cloud
         for z in range(max(0, center_z - radius), min(center_z + radius, depth)):
             for y in range(max(0, center_y - radius), min(center_y + radius, height)):
                 for x in range(max(0, center_x - width), min(center_x + radius, width)):
